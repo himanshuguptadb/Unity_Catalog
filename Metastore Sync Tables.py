@@ -5,6 +5,7 @@
 # COMMAND ----------
 
 from functools import reduce
+from pyspark.sql import DataFrame
 from pyspark.sql.functions import lit
 
 def sync_databases(database_to_upgrade, catalog_destination, database_destination = None, database_owner_to = None, dry_run = None):
