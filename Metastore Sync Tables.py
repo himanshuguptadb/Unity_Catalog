@@ -45,7 +45,7 @@ def sync_databases(database_to_upgrade, catalog_destination, database_destinatio
   
     sync_statusDF = spark.createDataFrame(data=sync_status, schema = syncColumns)
   else:
-    sync_statusDF = spark.createDataFrame([(database_to_upgrade,"","",catalog_destination,database_destination,"","SUCESS","Empty Database")], schema = syncColumns)
+    sync_statusDF = spark.createDataFrame([(database_to_upgrade,"","",catalog_destination,database_destination,"","SUCCESS","Empty Database")], schema = syncColumns)
 
   return sync_statusDF
 
