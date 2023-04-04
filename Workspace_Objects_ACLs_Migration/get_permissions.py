@@ -5,7 +5,7 @@
 
 # DBTITLE 1,Creating the widgets
 dbutils.widgets.removeAll()
-dbutils.widgets.dropdown(
+dbutils.widgets.multiselect(
     "artifact",
     "Jobs",
     [
@@ -106,25 +106,22 @@ grp_df.display()
 
 # COMMAND ----------
 
-# DBTITLE 1,Getting the Permissions URI for the particular type of artifact
-perm_uri = perm_uri_dict[type_of_permission_migration]
-print(perm_uri)
-
-# COMMAND ----------
-
-# DBTITLE 1,Preparing the permissions dataframe for the artifact
-artifact_func = perm_data_dict[type_of_permission_migration]
-artifact_list = artifact_func()
-perms = parse_artifact_list(type_of_permission_migration, artifact_list)
-schema = schema_dict[type_of_permission_migration]
-perm_df_func = perm_tranformations_func_dict[type_of_permission_migration]
-perm_df = perm_df_func(perms, schema)
-display(perm_df)
-
-# COMMAND ----------
-
-# DBTITLE 1,Joining the permissions back to groups dataframe
-adf = (
+type_of_permission_migration_list = type_of_permission_migration.split(",")
+for artifact in type_of_permission_migration_list:
+  #Getting the Permissions URI for the particular type of artifact
+  perm_uri = perm_uri_dict[artifact]
+  print(perm_uri)
+  #Preparing the permissions dataframe for the artifact
+  artifact_func = perm_data_dict[artifact]
+  artifact_list = artifact_func()
+  perms = parse_artifact_list(artifact, artifact_list)
+  schema = schema_dict[artifact]
+  perm_df_func = perm_tranformations_func_dict[artifact]
+  perm_df = perm_df_func(perms, schema)
+  display(perm_df)
+  perm_df.write.format("delta").mode("append").saveAsTable(table_name+"_All")
+  #Joining the permissions back to groups dataframe
+  adf = (
     perm_df.alias("perm")
     .join(grp_df.alias("grp"), ["group_name"], "inner")
     .select(
@@ -136,18 +133,17 @@ adf = (
         f.col("artifact_type"),
     )
     .withColumn("permission_update_status", f.lit(None).cast("string"))
-)
-adf.display()
-
-# COMMAND ----------
-
-# DBTITLE 1,Saving the data to a table
-if save_choice == "Yes":
-    adf.write.format("delta").mode("overwrite").partitionBy("artifact_type").option(
-        "partitionOverwriteMode", "dynamic"
-    ).saveAsTable(table_name)
+      )
+  adf.display()
+  if save_choice == "Yes":
+    adf.write.format("delta").mode("append").saveAsTable(table_name)
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC select * from _aman_uc_perm_names
+# MAGIC select * from hg_test_permissions_aman_uc_perm_names
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC select * from hg_test_permissions_all
