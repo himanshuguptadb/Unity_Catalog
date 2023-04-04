@@ -6,7 +6,7 @@
 # DBTITLE 1,Creating the widgets
 dbutils.widgets.removeAll()
 dbutils.widgets.multiselect(
-    "artifact",
+    "artifacts",
     "Jobs",
     [
         "Jobs",
@@ -70,7 +70,7 @@ if save_choice == "Yes":
         "",
     ], "Table name must be provided if save choice is Yes"
 
-type_of_permission_migration = dbutils.widgets.get("artifact")
+type_of_permission_migration = dbutils.widgets.get("artifacts")
 # token = dbutils.widgets.get("token")
 context = json.loads(
     dbutils.notebook.entry_point.getDbutils().notebook().getContext().toJson()
