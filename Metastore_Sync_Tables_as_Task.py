@@ -4,9 +4,22 @@
 
 # COMMAND ----------
 
+dbutils.widgets.text("database", "", "")
+dbutils.widgets.text("catalog", "", "")
+dbutils.widgets.text("owner", "", "")
+dbutils.widgets.text("run", "", "")
+
+database =  dbutils.widgets.get("database")
+catalog =  dbutils.widgets.get("catalog")
+owner =  dbutils.widgets.get("owner")
+run =  dbutils.widgets.get("run")
+
+# COMMAND ----------
+
 from functools import reduce
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import lit
+from pyspark.sql.types import StructType,StructField, StringType
 
 def sync_databases(database_to_upgrade, catalog_destination, database_destination = None, database_owner_to = None, dry_run = None):
   """Sync all tabes from one databse to the UC.
@@ -47,9 +60,12 @@ def sync_databases(database_to_upgrade, catalog_destination, database_destinatio
   else:
     sync_statusDF = spark.createDataFrame([(database_to_upgrade,"","",catalog_destination,database_destination,"","SUCCESS","Empty Database")], schema = syncColumns)
     
-  sync_statusDF.write.mode("append").format("delta").saveAsTable("himanshu_gupta_demos.uc_upgrade.table_sync_status")
-
+  #sync_statusDF.write.mode("append").format("parquet").saveAsTable("himanshu_gupta_demos.uc_upgrade.table_sync_status_p")
+  return sync_statusDF
+  
 
 # COMMAND ----------
 
-sync_databases(database_to_upgrade = {database}, catalog_destination = {catalog}, database_destination = {database}, database_owner_to = {owner}, dry_run = {run})
+sync_status = sync_databases(database_to_upgrade = database, catalog_destination = catalog, database_destination = database, database_owner_to = owner, dry_run = run)
+sync_status_j = sync_status.toPandas().to_json(orient='records')
+dbutils.notebook.exit(sync_status_j)
