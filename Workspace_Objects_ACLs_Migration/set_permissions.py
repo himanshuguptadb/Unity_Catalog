@@ -1,8 +1,8 @@
 # Databricks notebook source
 # DBTITLE 1,Widgets prep
 dbutils.widgets.removeAll()
-dbutils.widgets.dropdown(
-    "artifact",
+dbutils.widgets.multiselect(
+    "artifacts",
     "Jobs",
     [
         "Jobs",
@@ -52,21 +52,23 @@ import ast
 
 # DBTITLE 1,Initializing the required variables
 table_name = dbutils.widgets.get("table_name")
-type_of_permission_migration = dbutils.widgets.get("artifact")
+type_of_permission_migration = dbutils.widgets.get("artifacts")
 context = json.loads(
     dbutils.notebook.entry_point.getDbutils().notebook().getContext().toJson()
 )
 instancename = context["tags"]["browserHostName"]
-category = apply_category_dict[type_of_permission_migration]
+print(instancename)
+type_of_permission_migration_list = type_of_permission_migration.split(",")
 
-perm_uri = perm_uri_dict[type_of_permission_migration]
-print(perm_uri)
 
 # COMMAND ----------
 
 # DBTITLE 1,Functions to update permissions
 @f.udf(t.StringType())
-def update_permits(artifact_id, grp_name, permission):
+def update_permits(artifact_id, grp_name, permission, artifact_type):
+    apply_category_dict_inv = dict((v, k) for k, v in apply_category_dict.items())
+    artifact_type = apply_category_dict_inv[artifact_type]
+    perm_uri = perm_uri_dict[artifact_type]
     uri = perm_uri.format(instancename=instancename, artifact_id=artifact_id)
     payload = json.dumps(
         {
@@ -84,18 +86,23 @@ def update_permits(artifact_id, grp_name, permission):
 # COMMAND ----------
 
 # DBTITLE 1,Reflecting the updated permissions
-if spark.catalog.tableExists(table_name):
+for artifact in type_of_permission_migration_list:
+  category = apply_category_dict[artifact]
+  perm_uri = perm_uri_dict[artifact]
+  print(perm_uri)
+
+  if spark.catalog.tableExists(table_name):
     adf = spark.table(table_name)
     adf = adf.filter(f.col("artifact_type") == category)
     adf = adf.repartition(1).repartition(worker_cores)
     adf = adf.withColumn(
         "permission_update_status",
-        update_permits("id", "new_group_names", "permission_level"),
+        update_permits("id", "new_group_names", "permission_level","artifact_type"),
     )
     adf.write.format("delta").mode("overwrite").partitionBy("artifact_type").option(
         "partitionOverwriteMode", "dynamic"
     ).saveAsTable(table_name)
     adf = spark.table(table_name).filter(f"""artifact_type == "{category}" """)
     adf.display()
-else:
-    print("Execute notebook 1 first!!")
+  else:
+    print("Execute get permissions notebook first!!")

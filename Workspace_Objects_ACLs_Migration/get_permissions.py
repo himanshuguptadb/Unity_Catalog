@@ -119,7 +119,7 @@ for artifact in type_of_permission_migration_list:
   perm_df_func = perm_tranformations_func_dict[artifact]
   perm_df = perm_df_func(perms, schema)
   display(perm_df)
-  perm_df.write.format("delta").mode("append").saveAsTable(table_name+"_All")
+  #perm_df.write.format("delta").mode("append").saveAsTable("himanshu_gupta_demos.uc_upgrade."+table_name+"_All")
   #Joining the permissions back to groups dataframe
   adf = (
     perm_df.alias("perm")
@@ -136,14 +136,4 @@ for artifact in type_of_permission_migration_list:
       )
   adf.display()
   if save_choice == "Yes":
-    adf.write.format("delta").mode("append").saveAsTable(table_name)
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC select * from hg_test_permissions_aman_uc_perm_names
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC select * from hg_test_permissions_all
+    adf.write.format("delta").mode("overwrite").partitionBy("artifact_type").option("partitionOverwriteMode", "dynamic").saveAsTable(table_name)
