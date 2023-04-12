@@ -40,6 +40,7 @@ print('Getting table/view details from all dbs in external metastore')
 
 #uncomment bellow line to run for all databases
 #databases = [row['databaseName'] for row in spark.sql(f"SHOW DATABASES IN hive_metastore").collect()]
+#databases = databases[:500]
 
 #Comment below line to run for all databases
 databases = ['himanshu_gupta_demo_hms','000_demo_db','_fivetran_staging']
@@ -47,17 +48,17 @@ databases = ['himanshu_gupta_demo_hms','000_demo_db','_fivetran_staging']
 all_table_details_Columns = StructType([
   StructField('database_name', StringType(), True),
   StructField('table_name', StringType(), True),
-  StructField('is_view', StringType(), True),
+  StructField('table_type', StringType(), True),
   StructField('storage_format', StringType(), True),
-  StructField('is_delta', StringType(), True),
+  StructField('managed', StringType(), True),
   StructField('storage_location', StringType(), True),
-  StructField('should_copy', StringType(), True),
+  #StructField('should_copy', StringType(), True),
   StructField('error', StringType(), True)
   ])
 all_table_detailsDF = spark.createDataFrame(data=[], schema = all_table_details_Columns)
 #upgrades 3 databases in parallel to speedup migration
 
-with ThreadPoolExecutor(max_workers=50) as executor:
+with ThreadPoolExecutor(max_workers=100) as executor:
   futures = [
         executor.submit(parallel_sync, database) for database in databases
     ]
