@@ -33,7 +33,7 @@ import time
 
 print('Sync all external databases to the UC:')
 databases = [row['databaseName'] for row in spark.sql(f"SHOW DATABASES IN hive_metastore").collect()]
-databases = databases[:1]
+databases = ['himanshu_gupta_demo_hms']
 #databases = ['ah_feature_store_taxi_demo', 'ahecksher']##, 'ahecksher_dlt_db', 'ahecksherdb']
 #upgrades 50 databases in parallel to speedup migration
 
