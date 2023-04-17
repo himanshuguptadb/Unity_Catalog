@@ -119,8 +119,10 @@ def metadata_query(database_to_upgrade):
 # COMMAND ----------
 
 metadata_status = metadata_query(database_to_upgrade = database)
+#metadata_status.write.mode("append").format("delta").saveAsTable("himanshu_gupta_demos.uc_upgrade.metastore_inventory_status1")
 metadata_status_j = metadata_status.toPandas().to_json(orient='records')
 dbutils.notebook.exit(metadata_status_j)
+#dbutils.notebook.exit()
 
 
 # COMMAND ----------

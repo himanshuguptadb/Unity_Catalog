@@ -69,7 +69,8 @@ with ThreadPoolExecutor(max_workers=100) as executor:
             continue
         try:
             table_details = future.result()
-            table_details_df = spark.createDataFrame(pd.read_json(table_details, orient='columns'))
+            table_details_df = spark.createDataFrame(pd.read_json(table_details, orient='columns'),schema = all_table_details_Columns)
+            table_details_df.write.mode("append").format("delta").saveAsTable("himanshu_gupta_demos.uc_upgrade.metastore_inventory")
             all_table_detailsDF = unionAll(all_table_detailsDF, table_details_df)
         except ValueError as e:
             print(f"{datetime.now()} - EXCEPTION! {e}")
