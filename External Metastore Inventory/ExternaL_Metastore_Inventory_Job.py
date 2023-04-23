@@ -62,22 +62,19 @@ with ThreadPoolExecutor(max_workers=100) as executor:
   futures = [
         executor.submit(parallel_sync, database) for database in databases
     ]
-  
-  for future in futures:
-        print([f._state for f in futures])
-        if future.cancelled():
-            continue
-        try:
-            table_details = future.result()
-            table_details_df = spark.createDataFrame(pd.read_json(table_details, orient='columns'),schema = all_table_details_Columns)
-            table_details_df.write.mode("append").format("delta").saveAsTable("himanshu_gupta_demos.uc_upgrade.metastore_inventory")
-            all_table_detailsDF = unionAll(all_table_detailsDF, table_details_df)
-        except ValueError as e:
-            print(f"{datetime.now()} - EXCEPTION! {e}")
-            executor.shutdown(wait=False, cancel_futures=True)
+
+ #Code used to parse output from task notebooks. Removed as tasks are writing data to storage 
+  # for future in futures:
+  #       print([f._state for f in futures])
+  #       if future.cancelled():
+  #           continue
+  #       try:
+  #           table_details = future.result()
+  #           table_details_df = spark.createDataFrame(pd.read_json(table_details, orient='columns'),schema = all_table_details_Columns)
+  #           table_details_df.write.mode("append").format("delta").saveAsTable("himanshu_gupta_demos.uc_upgrade.metastore_inventory")
+  #           all_table_detailsDF = unionAll(all_table_detailsDF, table_details_df)
+  #       except ValueError as e:
+  #           print(f"{datetime.now()} - EXCEPTION! {e}")
+  #           executor.shutdown(wait=False, cancel_futures=True)
 
 print(f"{datetime.now()} - Run complete")
-
-# COMMAND ----------
-
-all_table_detailsDF.display()

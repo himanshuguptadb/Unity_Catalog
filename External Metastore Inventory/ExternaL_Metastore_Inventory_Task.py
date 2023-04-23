@@ -10,6 +10,11 @@ database =  dbutils.widgets.get("database")
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC set spark.sql.mapKeyDedupPolicy = LAST_WIN
+
+# COMMAND ----------
+
 from functools import reduce
 from pyspark.sql import DataFrame
 from concurrent.futures import ThreadPoolExecutor
@@ -17,6 +22,7 @@ from collections import deque
 from pyspark.sql.types import StructType,StructField, StringType
 from pyspark.sql.functions import col, lit
 import pandas as pd
+from pyspark.sql import functions as F
 
 #function to merge two dataframes
 def unionAll(*dfs):
@@ -83,33 +89,41 @@ def metadata_query(database_to_upgrade):
   print(f'Querying database under `hive_metastore`.`{database_to_upgrade}`.')
   #Now iterate over all the tables or views with the database
   table_details_Columns = StructType([
-  StructField('database_name', StringType(), True),
-  StructField('table_name', StringType(), True),
-  StructField('table_type', StringType(), True),
-  StructField('storage_format', StringType(), True),
-  StructField('managed', StringType(), True),
-  StructField('storage_location', StringType(), True),
-  #StructField('should_copy', StringType(), True),
-  StructField('error', StringType(), True)
+  StructField('database', StringType(), True),
+  StructField('tableName', StringType(), True),
+  StructField('isTemporary', StringType(), True),
+  StructField('Type', StringType(), True),
+  StructField('Provider', StringType(), True),
+  StructField('Location', StringType(), True),
+  StructField('Serde Library', StringType(), True),
+  StructField('Error', StringType(), True)
   ])
   #table_details_Columns = ["database_name","table_name","is_view","is_delta","storage_location","should_copy","error"]
-  db_table_details = spark.createDataFrame([], schema = table_details_Columns)
+  #db_table_details = spark.createDataFrame([], schema = table_details_Columns)
   
-  tables = spark.sql(f"SHOW TABLES IN hive_metastore.{database_to_upgrade}").collect()
-  
-  if len(tables) == 0:
-    no_tables_DF = []
-    no_tables_DF = spark.createDataFrame(data=[(database_to_upgrade,"","","","","","Empty Database")], schema = table_details_Columns)
-    db_table_details = unionAll(db_table_details, no_tables_DF)
-  else:
-    for row in tables:
-      table_name = row['tableName']
-      full_table_name_source = f'`hive_metastore`.`{database_to_upgrade}`.`{table_name}`'
-      storage_location,storage_format, table_type, managed, error = table_view_details(full_table_name_source)
+  metadata = spark.sql(f"SHOW TABLE EXTENDED  IN {database_to_upgrade} LIKE '*'")
 
-      table_detailsDF = spark.createDataFrame(data=[(database_to_upgrade,table_name,table_type,storage_format,managed,storage_location,error)], schema = table_details_Columns)
-      db_table_details = unionAll(db_table_details, table_detailsDF)
-  return db_table_details
+  keys = ["Type", "Provider", "Location", "Serde Library"]
+
+  metadata_parsed = metadata.withColumn('information_detail', F.expr("str_to_map(information,'\n',':')"))\
+                            .selectExpr("*", *[ f"information_detail['{k}'] as `{k}`" for k in keys ])\
+                            .drop("information")\
+                            .drop("information_detail")\
+  
+  if metadata_parsed.count() == 0:
+    metadata_parsed = []
+    metadata_parsed = spark.createDataFrame(data=[(database_to_upgrade,"","","","","","","Empty Database")], schema = table_details_Columns)
+  #   db_table_details = unionAll(db_table_details, no_tables_DF)
+  # else:
+  #   for row in tables:
+  #     table_name = row['tableName']
+  #     full_table_name_source = f'`hive_metastore`.`{database_to_upgrade}`.`{table_name}`'
+  #     storage_location,storage_format, table_type, managed, error = table_view_details(full_table_name_source)
+
+  #     table_detailsDF = spark.createDataFrame(data=[(database_to_upgrade,table_name,table_type,storage_format,managed,storage_location,error)], schema = table_details_Columns)
+  #     db_table_details = unionAll(db_table_details, table_detailsDF)
+
+  return metadata_parsed
 
 # COMMAND ----------
 
@@ -119,10 +133,13 @@ def metadata_query(database_to_upgrade):
 # COMMAND ----------
 
 metadata_status = metadata_query(database_to_upgrade = database)
+#display(metadata_status)
+location = "/tmp/ExternaL_Metastore_Inventory_Job/"+database
+metadata_status.coalesce(1).write.parquet(location)
 #metadata_status.write.mode("append").format("delta").saveAsTable("himanshu_gupta_demos.uc_upgrade.metastore_inventory_status1")
-metadata_status_j = metadata_status.toPandas().to_json(orient='records')
-dbutils.notebook.exit(metadata_status_j)
-#dbutils.notebook.exit()
+#metadata_status_j = metadata_status.toPandas().to_json(orient='records')
+#dbutils.notebook.exit(metadata_status_j)
+dbutils.notebook.exit("1")
 
 
 # COMMAND ----------
