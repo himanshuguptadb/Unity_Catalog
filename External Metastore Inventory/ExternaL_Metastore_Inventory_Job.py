@@ -39,11 +39,11 @@ from datetime import datetime
 print('Getting table/view details from all dbs in external metastore')
 
 #uncomment bellow line to run for all databases
-#databases = [row['databaseName'] for row in spark.sql(f"SHOW DATABASES IN hive_metastore").collect()]
+databases = [row['databaseName'] for row in spark.sql(f"SHOW DATABASES IN hive_metastore").collect()]
 #databases = databases[:500]
 
 #Comment below line to run for all databases
-databases = ['himanshu_gupta_demo_hms','000_demo_db','_fivetran_staging']
+#databases = ['himanshu_gupta_demo_hms','000_demo_db','_fivetran_staging']
 
 all_table_details_Columns = StructType([
   StructField('database_name', StringType(), True),

@@ -99,16 +99,21 @@ def metadata_query(database_to_upgrade):
   StructField('Error', StringType(), True)
   ])
   #table_details_Columns = ["database_name","table_name","is_view","is_delta","storage_location","should_copy","error"]
-  #db_table_details = spark.createDataFrame([], schema = table_details_Columns)
+  db_table_details = spark.createDataFrame([], schema = table_details_Columns)
   
   metadata = spark.sql(f"SHOW TABLE EXTENDED  IN {database_to_upgrade} LIKE '*'")
 
   keys = ["Type", "Provider", "Location", "Serde Library"]
+  error = ""
 
-  metadata_parsed = metadata.withColumn('information_detail', F.expr("str_to_map(information,'\n',':')"))\
+  metadata = metadata.withColumn('information_detail', F.expr("str_to_map(information,'\n',':')"))\
                             .selectExpr("*", *[ f"information_detail['{k}'] as `{k}`" for k in keys ])\
                             .drop("information")\
                             .drop("information_detail")\
+                            .withColumn('Error', lit(error))\
+
+  metadata_parsed = metadata.select([col(c).cast("string") for c in metadata.columns])
+                                
   
   if metadata_parsed.count() == 0:
     metadata_parsed = []
