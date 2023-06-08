@@ -246,7 +246,7 @@ def secrets_tranformations(data, schema):
         "group_name", f.col("scope_perms.group_name")
     ).withColumn("permissions", f.col("scope_perms.permissions"))
     perm_df = perm_df.drop("scope_perms")
-    perm_df = perm_df.withColumn("artifact_type", f.lit("Secrets"))
+    perm_df = perm_df.withColumn("artifact_type", f.lit("Secret"))
     return perm_df
 
 # COMMAND ----------

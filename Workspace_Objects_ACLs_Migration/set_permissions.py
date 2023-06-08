@@ -16,6 +16,7 @@ dbutils.widgets.multiselect(
         "Repos",
         "Notebooks",
         "Directories",
+        "Secrets"
     ],
     "Type of Artifact",
 )
@@ -68,16 +69,26 @@ type_of_permission_migration_list = type_of_permission_migration.split(",")
 def update_permits(artifact_id, grp_name, permission, artifact_type):
     apply_category_dict_inv = dict((v, k) for k, v in apply_category_dict.items())
     artifact_type = apply_category_dict_inv[artifact_type]
-    perm_uri = perm_uri_dict[artifact_type]
-    uri = perm_uri.format(instancename=instancename, artifact_id=artifact_id)
-    payload = json.dumps(
+    if artifact_type == "Secrets":
+      perm_uri = "https://{instancename}/api/2.0/secrets/acls/put"
+      uri = perm_uri.format(instancename=instancename)
+      payload = json.dumps(
+        {
+          "scope": artifact_id, "principal": grp_name, "permission":  permission
+        }
+      )
+      job_perm = req.post(uri, headers=api_header, data=payload)
+    else:
+      perm_uri = perm_uri_dict[artifact_type]
+      uri = perm_uri.format(instancename=instancename, artifact_id=artifact_id)
+      payload = json.dumps(
         {
             "access_control_list": [
                 {"group_name": grp_name, "permission_level": permission}
             ]
         }
-    )
-    job_perm = req.patch(uri, headers=api_header, data=payload)
+      )
+      job_perm = req.patch(uri, headers=api_header, data=payload)
     if job_perm.status_code == 200:
         return "Permission set Successfully"
     else:
@@ -89,7 +100,6 @@ def update_permits(artifact_id, grp_name, permission, artifact_type):
 for artifact in type_of_permission_migration_list:
   category = apply_category_dict[artifact]
   perm_uri = perm_uri_dict[artifact]
-  print(perm_uri)
 
   if spark.catalog.tableExists(table_name):
     adf = spark.table(table_name)

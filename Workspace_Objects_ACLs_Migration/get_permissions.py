@@ -102,7 +102,7 @@ print(
 # COMMAND ----------
 
 # DBTITLE 1,Groups information filtered or unfiltered based on condition of input
-grp_df = get_grp_df().filter("group_name != 'admins' and group_name not like 'uc_%'")
+grp_df = get_grp_df().filter("group_name != 'admins' and group_name not like 'uc_%' and group_name != 'users'")
 grp_df.display()
 
 # COMMAND ----------
