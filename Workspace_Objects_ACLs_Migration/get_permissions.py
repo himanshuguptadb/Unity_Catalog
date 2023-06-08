@@ -20,6 +20,7 @@ dbutils.widgets.multiselect(
         "Repos",
         "Notebooks",
         "Directories",
+        "Secrets"
     ],
     "Type of Artifact",
 )
@@ -43,9 +44,9 @@ token = (
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 
+# MAGIC
 # MAGIC ### List of Groups can be of the following types
-# MAGIC 
+# MAGIC
 # MAGIC * None
 # MAGIC * "aa_group"
 # MAGIC * ["aa_group","admins","users"]
@@ -110,7 +111,6 @@ type_of_permission_migration_list = type_of_permission_migration.split(",")
 for artifact in type_of_permission_migration_list:
   #Getting the Permissions URI for the particular type of artifact
   perm_uri = perm_uri_dict[artifact]
-  print(perm_uri)
   #Preparing the permissions dataframe for the artifact
   artifact_func = perm_data_dict[artifact]
   artifact_list = artifact_func()

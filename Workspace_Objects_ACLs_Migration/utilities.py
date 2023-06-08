@@ -60,6 +60,7 @@ perm_uri_dict = {
     "Repos": "https://{instancename}/api/2.0/preview/permissions/repos/{artifact_id}",
     "Notebooks": "https://{instancename}/api/2.0/preview/permissions/notebooks/{artifact_id}",
     "Directories": "https://{instancename}/api/2.0/preview/permissions/directories/{artifact_id}",
+    "Secrets": "https://{instancename}/api/2.0/secrets/acls/list/{scope}",
 }
 
 # COMMAND ----------
@@ -77,6 +78,7 @@ apply_category_dict = {
     "Repos": "Repo",
     "Notebooks": "Notebook",
     "Directories": "Directory",
+    "Secrets": "Secret",
 }
 
 # COMMAND ----------
@@ -237,6 +239,16 @@ def directories_tranformations(data, schema):
     perm_df = perm_df.withColumn("artifact_type", f.lit("Directory"))
     return perm_df
 
+def secrets_tranformations(data, schema):
+    perm_df = spark.createDataFrame(data, schema)
+    perm_df = perm_df.withColumn("scope_perms", f.explode(f.col("scope_perms")))
+    perm_df = perm_df.withColumn(
+        "group_name", f.col("scope_perms.group_name")
+    ).withColumn("permissions", f.col("scope_perms.permissions"))
+    perm_df = perm_df.drop("scope_perms")
+    perm_df = perm_df.withColumn("artifact_type", f.lit("Secrets"))
+    return perm_df
+
 # COMMAND ----------
 
 # DBTITLE 1,Method for getting the model ID for a model name
@@ -249,6 +261,32 @@ def get_model_id(name):
     ).json()
     model_detail = model_call["registered_model_databricks"]
     return model_detail["id"]
+
+# COMMAND ----------
+
+# DBTITLE 1,Method for getting secrets permissions
+def get_secrets_acls(name):
+    query_params = {"scope": name}
+    try:
+      secrets_call = req.get(
+        f"https://{instancename}/api/2.0/secrets/acls/list",
+        headers=api_header,
+        params=query_params,
+    ).json()
+
+      secrets_detail = secrets_call["items"]
+      if secrets_detail != None:
+        filt_secrets_detail = [i for i in secrets_detail if "principal" in i.keys()]
+        filt_secrets_detail_parsed = [
+            {
+                "group_name": i.get("principal"),
+                "permissions": i.get("permission")
+            }
+            for i in filt_secrets_detail
+        ]
+      return filt_secrets_detail_parsed
+    except:
+      return [None]
 
 # COMMAND ----------
 
@@ -357,6 +395,7 @@ def get_warehouses():
     warehouses_response = req.get(
         f"https://{instancename}/api/2.0/sql/warehouses/", headers=api_header
     ).json()
+    #print(warehouses_response)
     warehouses_response["warehouses"]
     warehouses_list = [
         {"name": i.get("name"), "warehouse_id": i.get("id")}
@@ -523,6 +562,19 @@ def get_directories():
     list_workspace_objects("/")
     print("Directories List count:", len(directories))
     return directories
+  
+def get_secrets():
+
+  secrets_response = req.get(
+        f"https://{instancename}/api/2.0/secrets/scopes/list",
+        headers=api_header
+    ).json()
+
+  secrets_lst = [
+        {"id": i.get("name"), "name": i.get("name")} for i in secrets_response["scopes"]
+    ]
+  print("Secrets count:", len(secrets_lst))
+  return secrets_lst
 
 # COMMAND ----------
 
@@ -544,6 +596,7 @@ def get_grp_df():
 # COMMAND ----------
 
 def get_permissions(uri):
+    print(uri)
     perm_call = req.get(
         uri,
         headers=api_header,
@@ -558,6 +611,7 @@ def get_permissions(uri):
             }
             for i in filt_perm_list
         ]
+        print(filt_perm_list_parsed)
         return filt_perm_list_parsed
     else:
         return [None]
@@ -715,6 +769,7 @@ def parse_artifact_list(type_of_permission_migration, artifact_list):
             for r in executor.map(get_permissions, warehouse_perms_group_perms_simple):
                 result.append(r)
         zip_up = list(zip(warehouse_perms_group_perms, result))
+        print(zip_up)
         return_warehouse_perms = [
             {
                 "name": i[0]["name"],
@@ -829,6 +884,7 @@ def parse_artifact_list(type_of_permission_migration, artifact_list):
         with ProcessPoolExecutor(max_workers=cores) as executor:
             for r in executor.map(get_permissions, directory_perms_group_perms_simple):
                 result.append(r)
+        print(result)
         zip_up = list(zip(directory_perms_group_perms, result))
         return_directory_perms = [
             {
@@ -839,6 +895,34 @@ def parse_artifact_list(type_of_permission_migration, artifact_list):
             for i in zip_up
         ]
         return return_directory_perms
+    elif type_of_permission_migration == "Secrets":
+        secrets_perms_group_perms = [
+            {
+                "id": i["id"],
+                "name": i["name"],
+                "uri": perm_uri.format(
+                    instancename=instancename, scope=i["name"]
+                ),
+            }
+            for i in artifact_list
+        ]
+        secrets_perms_group_perms_simple = [
+            i["id"] for i in secrets_perms_group_perms
+        ]
+        result = []
+        with ProcessPoolExecutor(max_workers=3) as executor:
+            for r in executor.map(get_secrets_acls, secrets_perms_group_perms_simple):
+                result.append(r)
+        zip_up = list(zip(secrets_perms_group_perms, result))
+        return_secrets_perms = [
+            {
+                "id": i[0]["id"],
+                "name": i[0]["id"],
+                "scope_perms": i[1],
+            }
+            for i in zip_up
+        ]
+        return return_secrets_perms
 
 # COMMAND ----------
 
@@ -854,6 +938,7 @@ perm_tranformations_func_dict = {
     "Repos": repos_tranformations,
     "Notebooks": notebooks_tranformations,
     "Directories": directories_tranformations,
+    "Secrets": secrets_tranformations,
 }
 
 # COMMAND ----------
@@ -870,6 +955,7 @@ perm_data_dict = {
     "Repos": get_repos,
     "Notebooks": get_notebooks,
     "Directories": get_directories,
+    "Secrets": get_secrets,
 }
 
 # COMMAND ----------
@@ -1055,6 +1141,23 @@ schema_dict = {
                         [
                             t.StructField("group_name", t.StringType()),
                             t.StructField("permissions", t.ArrayType(t.StringType())),
+                        ]
+                    )
+                ),
+            ),
+        ]
+    ),
+    "Secrets": t.StructType(
+        [
+            t.StructField("id", t.StringType()),
+            t.StructField("name", t.StringType()),
+            t.StructField(
+                "scope_perms",
+                t.ArrayType(
+                    t.StructType(
+                        [
+                            t.StructField("group_name", t.StringType()),
+                            t.StructField("permissions", t.StringType()),
                         ]
                     )
                 ),
