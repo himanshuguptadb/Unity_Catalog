@@ -35,6 +35,7 @@ def sync_databases(database_to_upgrade, catalog_destination, database_destinatio
   if database_destination == None:
     database_destination = database_to_upgrade
   spark.sql(f'CREATE DATABASE IF NOT EXISTS `{catalog_destination}`.`{database_destination}`')
+  spark.sql(f'ALTER DATABASE `{catalog_destination}`.`{database_destination}` OWNER TO `{database_owner_to}`')
   
   print(f'Upgrading database under `hive_metastore`.`{database_to_upgrade}` to UC database `{catalog_destination}`.`{database_destination}`.')
   syncColumns = ["source_schema","source_name","source_type","target_catalog","target_schema","target_name","status_code","description"]
