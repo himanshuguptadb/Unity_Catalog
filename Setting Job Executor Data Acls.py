@@ -89,8 +89,8 @@ for database in target_database:
   database_external_locations = metadata_query(target_catalog,database)
 
   database_external_locations = database_external_locations.crossJoin(external_locations)
-  external_location_to_grant = b.withColumn("Matched", when(b.Location.contains(b.url),"1")
-                                                      .when(b.url.contains(b.Location),"1")
+  external_location_to_grant = database_external_locations.withColumn("Matched", when(database_external_locations.Location.contains(database_external_locations.url),"1")
+                                                      .when(database_external_locations.url.contains(database_external_locations.Location),"1")
                                                       .otherwise("0"))\
                                 .filter(col("Matched") == "1")\
                                 .select("name")\
